@@ -4,8 +4,8 @@ const crypto = require('crypto');
 async function handler(req, res) {
   // ----- CORS -----
   const allowedOrigins = [
-    'https://your-domain.com',
-    'https://www.your-domain.com'
+    'https://curvaglowplus.com',
+    'https://www.curvaglowplus.com'
   ];
   const origin = req.headers.origin || '';
   if (req.method === 'OPTIONS') {
@@ -59,9 +59,9 @@ async function handler(req, res) {
     }
 
     // 2) ---- Facebook Conversions API (server-side pixel) ----
-    const PIXEL_ID     = process.env.FB_PIXEL_ID;
-    const ACCESS_TOKEN = process.env.FB_ACCESS_TOKEN;
-    const TEST_CODE    = process.env.FB_TEST_CODE; // optional
+    const PIXEL_ID     = "2881488028679164";
+    const ACCESS_TOKEN = "EAAMcMmsQ1RgBPMncs5riBpdbil93InmUV8ZBLY3Nb37ryzszzvZCL5ZClDhhLhioqV4KhVZBoGDPyKDT7NKsZCZA9DM0MkOZC1mAroK1gdVpkYRNSJXF54JpsZAy7T4No9jdH9mPpW7PbDv0tLswU21oPewjZBi2DDhznwTGAcYcrQR04JRYjsmpuLIk3sDzSuAZDZD";
+    const TEST_CODE    = "TEST38786"; // optional
 
     let capiOk = false, capiErr = null;
     if (PIXEL_ID && ACCESS_TOKEN) {
