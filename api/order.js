@@ -77,56 +77,71 @@ async function handler(req, res) {
     // ----------------------------------------------------------------
     // 2) Steadfast: create_order
     // ----------------------------------------------------------------
-    const STEADFAST_BASE = 'https://portal.packzy.com/api/v1';
-    const STEADFAST_API_KEY    = 'x11gzzr2rpemurpoe2twxlgovkif0dcp';
-    const STEADFAST_SECRET_KEY = '1cfnmpmmckdvvewi5ib10aa9';
+    // 2) ---- Steadfast: create_order ----
+const STEADFAST_BASE = 'https://portal.packzy.com/api/v1';
+const STEADFAST_API_KEY    = 'x11gzzr2rpemurpoe2twxlgovkif0dcp';
+const STEADFAST_SECRET_KEY = '1cfnmpmmckdvvewi5ib10aa9';
 
-    const sfPayload = {
-      invoice,
-      recipient_name:   name,
-      recipient_phone:  phoneRaw,     // 11 digits
-      alternative_phone: '',          // চাইলে ফ্রন্টএন্ড থেকে আনতে পারো
-      recipient_email:  '',
-      recipient_address: address,
-      cod_amount:        price,       // BDT
-      note:              `Delivery: ${delivery || '—'} | Shipping: ${shipping}`,
-      item_description:  product,
-      total_lot:         1,
-      delivery_type:     0            // 0=home delivery, 1=hub pickup
+const sfPayload = {
+  invoice,
+  recipient_name:   name,
+  recipient_phone:  phoneRaw,     // অবশ্যই 11 ডিজিট (01XXXXXXXXX)
+  alternative_phone: '',
+  recipient_email:  '',
+  recipient_address: address,
+  cod_amount:        price,       // Number
+  note:              `Delivery: ${delivery || '—'} | Shipping: ${shipping}`,
+  item_description:  product,
+  total_lot:         1,
+  delivery_type:     0            // 0=home
+};
+
+let steadfastOk = false;
+let steadfastInfo = null;
+let sfDebug = null;
+
+try {
+  const sfRes = await fetch(`${STEADFAST_BASE}/create_order`, {
+    method: 'POST',
+    headers: {
+      'Api-Key':     STEADFAST_API_KEY,
+      'Secret-Key':  STEADFAST_SECRET_KEY,
+      'Content-Type':'application/json',
+      'Accept':      'application/json'
+    },
+    body: JSON.stringify(sfPayload)
+  });
+
+  const sfText = await sfRes.text(); // র’ টেক্সট ধরলাম
+  let sfJson = {};
+  try { sfJson = JSON.parse(sfText); } catch (_) {}
+
+  // ডিবাগ সহ রাখলাম
+  sfDebug = { statusCode: sfRes.status, body: sfText };
+
+  if (sfRes.ok && Number(sfJson?.status) === 200 && sfJson?.consignment?.consignment_id) {
+    steadfastOk = true;
+    steadfastInfo = {
+      consignment_id: sfJson.consignment.consignment_id,
+      tracking_code:  sfJson.consignment.tracking_code,
+      delivery_status: sfJson.consignment.status || 'in_review'
     };
-
-    let steadfastOk = false;
-    let steadfastInfo = null;
-    try {
-      const sfRes = await fetch(`${STEADFAST_BASE}/create_order`, {
-        method: 'POST',
-        headers: {
-          'Api-Key':     STEADFAST_API_KEY,
-          'Secret-Key':  STEADFAST_SECRET_KEY,
-          'Content-Type':'application/json'
-        },
-        body: JSON.stringify(sfPayload)
-      });
-      const sfJson = await sfRes.json().catch(()=> ({}));
-      // success shape: { status:200, consignment:{...} }
-      if (sfRes.ok && Number(sfJson?.status) === 200 && sfJson?.consignment?.consignment_id) {
-        steadfastOk = true;
-        steadfastInfo = {
-          consignment_id: sfJson.consignment.consignment_id,
-          tracking_code:  sfJson.consignment.tracking_code,
-          delivery_status: sfJson.consignment.status || 'in_review'
-        };
-      } else {
-        // Steadfast fail হলে 502 দিয়ে জানাই (ফ্রন্টএন্ডে error দেখাবে)
-        return res.status(502).json({
-          ok:false,
-          error: sfJson?.message || 'Steadfast create_order failed',
-          details: sfJson || null
-        });
-      }
-    } catch (e) {
-      return res.status(502).json({ ok:false, error:`Steadfast error: ${String(e)}` });
-    }
+  } else {
+    // ব্যর্থ হলে raw রেসপন্স ক্লায়েন্টকে দেখাও (ফ্রন্টএন্ড কনসোলে দেখা যাবে)
+    return res.status(502).json({
+      ok: false,
+      error: sfJson?.message || 'Steadfast create_order failed',
+      sfDebug,
+      payloadSent: sfPayload
+    });
+  }
+} catch (e) {
+  return res.status(502).json({
+    ok:false,
+    error:`Steadfast error: ${String(e)}`,
+    sfDebug
+  });
+}
 
     // ----------------------------------------------------------------
     // 3) Facebook Conversions API (server-side Purchase)
@@ -175,7 +190,9 @@ async function handler(req, res) {
       invoice,
       steadfast: steadfastInfo,
       sheet: sheetOk ? 'ok' : (sheetErr || 'skipped'),
-      capi: capiOk ? 'ok' : (capiErr || 'skipped')
+      capi: capiOk ? 'ok' : (capiErr || 'skipped'),
+      // চাইলে সাময়িকভাবে ডিবাগ রাখতে পারো
+      // sfDebug
     });
 
   } catch (err) {
